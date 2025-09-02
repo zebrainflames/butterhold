@@ -1,24 +1,46 @@
 -- Require all our files
 local gamera = require("vendor/gamera")
+local bump = require("vendor/bump")
 local Player = require("player")
 local LevelGenerator = require("level_generator")
 local ALL_TEMPLATES = require("templates")
 local ALL_BIOMES = require("biomes")
+local should_draw_console = require("console")
 
 -- Constants
 local TILE_SIZE = 32
 local DEBUG_MODE = false
+local ENTITY_SIZE = 28
 
+-- Game world
+local world = bump.newWorld(TILE_SIZE)
 local level_map, entities, critical_path, level_dims
 local player
 local camera
 
+function add_box(x, y, w, h)
+	local tile = { x = x, y = y, w = w, h = h }
+	world:add(tile, x, y, w, h)
+end
+
 function generate()
+    world:clear()
     local biomes_list = {"caves", "goblin_grotto"}
     local biome_name = biomes_list[math.random(#biomes_list)]
     local biome = ALL_BIOMES[biome_name]
     level_map, entities, critical_path, level_dims = LevelGenerator.generate_level(biome, ALL_TEMPLATES)
     camera:setWorld(0, 0, level_dims.width * TILE_SIZE, level_dims.height * TILE_SIZE)
+
+    -- Add level geometry to the physics world
+    for y = 1, level_dims.height do
+        if level_map[y] then
+            for x = 1, level_dims.width do
+                if level_map[y][x] then
+                    add_box((x - 1) * TILE_SIZE, (y - 1) * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+                end
+            end
+        end
+    end
 
     -- Place player at the start of the critical path
     local start_pos = critical_path[1]
@@ -29,8 +51,10 @@ function generate()
 
     if player then
         player.x, player.y = player_x, player_y
+        world:update(player, player.x, player.y)
     else
         player = Player.new(player_x, player_y)
+        world:add(player, player.x, player.y, player.w, player.h)
     end
 end
 
@@ -42,9 +66,13 @@ function love.load()
 end
 
 function love.update(dt)
-    player:update(dt)
+    player:update(dt, world)
     -- Camera follows player
     camera:setPosition(player.x, player.y)
+
+    if love.keyboard.isDown("p") then
+		should_draw_console = not should_draw_console
+	end
 end
 
 function love.draw()
@@ -85,8 +113,6 @@ function love.draw()
         -- Draw entrance and exit
         local start_pos = critical_path[1]
         local end_pos = critical_path[#critical_path]
-        local room_width_tiles = #ALL_TEMPLATES["L-R"][1].tiles[1]
-        local room_height_tiles = #ALL_TEMPLATES["L-R"][1].tiles
         
         local start_x = (start_pos.x - 0.5) * room_width_tiles * TILE_SIZE
         local start_y = (start_pos.y - 0.5) * room_height_tiles * TILE_SIZE
@@ -112,7 +138,7 @@ function love.draw()
 
         -- Draw player
         love.graphics.setColor(1, 1, 1)
-        love.graphics.rectangle("fill", player.x - TILE_SIZE/4, player.y - TILE_SIZE/4, TILE_SIZE/2, TILE_SIZE/2)
+        love.graphics.rectangle("fill", player.x - player.w/2, player.y - player.h/2, player.w, player.h)
     end)
 
     -- UI/Overlay drawing (not affected by camera)
@@ -120,6 +146,9 @@ function love.draw()
     love.graphics.print("Press F1 for Debug View | Press R to Regenerate", 10, 10)
     if DEBUG_MODE then
         love.graphics.print("DEBUG MODE ACTIVE", 10, 30)
+    end
+    if should_draw_console then
+        draw_console()
     end
 end
 
