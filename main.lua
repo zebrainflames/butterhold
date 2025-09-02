@@ -18,6 +18,7 @@ function generate()
     local biome_name = biomes_list[math.random(#biomes_list)]
     local biome = ALL_BIOMES[biome_name]
     level_map, entities, critical_path, level_dims = LevelGenerator.generate_level(biome, ALL_TEMPLATES)
+    camera:setWorld(0, 0, level_dims.width * TILE_SIZE, level_dims.height * TILE_SIZE)
 
     -- Place player at the start of the critical path
     local start_pos = critical_path[1]
@@ -42,49 +43,45 @@ end
 
 function love.update(dt)
     player:update(dt)
-    -- Camera follows player and is clamped to the level boundaries
+    -- Camera follows player
     camera:setPosition(player.x, player.y)
-    camera:clamp(0, 0, level_dims.width * TILE_SIZE, level_dims.height * TILE_SIZE)
 end
 
 function love.draw()
-    camera:attach()
+    camera:draw(function(l, t, w, h)
+        -- Get camera bounds for visibility culling
+        local start_col = math.max(1, math.floor(l / TILE_SIZE))
+        local end_col = math.min(level_dims.width, math.ceil((l + w) / TILE_SIZE))
+        local start_row = math.max(1, math.floor(t / TILE_SIZE))
+        local end_row = math.min(level_dims.height, math.ceil((t + h) / TILE_SIZE))
 
-    -- Get camera bounds for visibility culling
-    local l, t, w, h = camera:getView()
-    local start_col = math.max(1, math.floor(l / TILE_SIZE))
-    local end_col = math.min(level_dims.width, math.ceil((l + w) / TILE_SIZE))
-    local start_row = math.max(1, math.floor(t / TILE_SIZE))
-    local end_row = math.min(level_dims.height, math.ceil((t + h) / TILE_SIZE))
-
-    -- Draw only the visible tiles
-    for y = start_row, end_row do
-        if level_map[y] then
-            for x = start_col, end_col do
-                if level_map[y][x] then
-                    love.graphics.setColor(level_map[y][x])
-                    love.graphics.rectangle("fill", (x - 1) * TILE_SIZE, (y - 1) * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+        -- Draw only the visible tiles
+        for y = start_row, end_row do
+            if level_map[y] then
+                for x = start_col, end_col do
+                    if level_map[y][x] then
+                        love.graphics.setColor(level_map[y][x])
+                        love.graphics.rectangle("fill", (x - 1) * TILE_SIZE, (y - 1) * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+                    end
                 end
             end
         end
-    end
 
-    -- Draw entities
-    for _, entity in ipairs(entities) do
-        love.graphics.setColor(entity.color)
-        love.graphics.rectangle("fill", entity.x, entity.y, TILE_SIZE, TILE_SIZE)
-    end
+        -- Draw entities
+        for _, entity in ipairs(entities) do
+            love.graphics.setColor(entity.color)
+            love.graphics.rectangle("fill", entity.x, entity.y, TILE_SIZE, TILE_SIZE)
+        end
 
-    -- Debug drawing
-    if DEBUG_MODE then
-        draw_debug()
-    end
+        -- Debug drawing
+        if DEBUG_MODE then
+            draw_debug()
+        end
 
-    -- Draw player
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.rectangle("fill", player.x - TILE_SIZE/2, player.y - TILE_SIZE/2, TILE_SIZE, TILE_SIZE)
-
-    camera:detach()
+        -- Draw player
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.rectangle("fill", player.x - TILE_SIZE/2, player.y - TILE_SIZE/2, TILE_SIZE, TILE_SIZE)
+    end)
 
     -- UI/Overlay drawing (not affected by camera)
     love.graphics.setColor(1, 1, 1)

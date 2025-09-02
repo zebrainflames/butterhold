@@ -23,3 +23,5 @@ function Player:update(dt)
         self.x = self.x + self.speed * dt
     end
 end
+
+return Player
