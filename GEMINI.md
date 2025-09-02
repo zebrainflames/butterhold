@@ -1,0 +1,1 @@
+- prefix all commits with the text "GEMINI:"
