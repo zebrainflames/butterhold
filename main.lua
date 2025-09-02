@@ -24,7 +24,7 @@ function add_box(x, y, w, h)
 end
 
 function generate()
-    world:clear()
+    world = bump.newWorld(TILE_SIZE)
     local biomes_list = {"caves", "goblin_grotto"}
     local biome_name = biomes_list[math.random(#biomes_list)]
     local biome = ALL_BIOMES[biome_name]
