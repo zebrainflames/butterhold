@@ -67,6 +67,38 @@ function love.draw()
             end
         end
 
+        -- Draw critical path
+        local room_width_tiles = #ALL_TEMPLATES["L-R"][1].tiles[1]
+        local room_height_tiles = #ALL_TEMPLATES["L-R"][1].tiles
+        love.graphics.setColor(0, 0, 1, 0.5) -- Blue, semi-transparent
+        love.graphics.setLineWidth(4)
+        for i = 1, #critical_path - 1 do
+            local p1 = critical_path[i]
+            local p2 = critical_path[i+1]
+            local x1 = (p1.x - 0.5) * room_width_tiles * TILE_SIZE
+            local y1 = (p1.y - 0.5) * room_height_tiles * TILE_SIZE
+            local x2 = (p2.x - 0.5) * room_width_tiles * TILE_SIZE
+            local y2 = (p2.y - 0.5) * room_height_tiles * TILE_SIZE
+            love.graphics.line(x1, y1, x2, y2)
+        end
+
+        -- Draw entrance and exit
+        local start_pos = critical_path[1]
+        local end_pos = critical_path[#critical_path]
+        local room_width_tiles = #ALL_TEMPLATES["L-R"][1].tiles[1]
+        local room_height_tiles = #ALL_TEMPLATES["L-R"][1].tiles
+        
+        local start_x = (start_pos.x - 0.5) * room_width_tiles * TILE_SIZE
+        local start_y = (start_pos.y - 0.5) * room_height_tiles * TILE_SIZE
+        love.graphics.setColor(0, 0, 1) -- Blue
+        love.graphics.rectangle("fill", start_x - TILE_SIZE/2, start_y - TILE_SIZE/2, TILE_SIZE, TILE_SIZE)
+
+        local end_x = (end_pos.x - 0.5) * room_width_tiles * TILE_SIZE
+        local end_y = (end_pos.y - 0.5) * room_height_tiles * TILE_SIZE
+        love.graphics.setColor(0, 1, 0) -- Green
+        love.graphics.rectangle("fill", end_x - TILE_SIZE/2, end_y - TILE_SIZE/2, TILE_SIZE, TILE_SIZE)
+
+
         -- Draw entities
         for _, entity in ipairs(entities) do
             love.graphics.setColor(entity.color)
@@ -80,7 +112,7 @@ function love.draw()
 
         -- Draw player
         love.graphics.setColor(1, 1, 1)
-        love.graphics.rectangle("fill", player.x - TILE_SIZE/2, player.y - TILE_SIZE/2, TILE_SIZE, TILE_SIZE)
+        love.graphics.rectangle("fill", player.x - TILE_SIZE/4, player.y - TILE_SIZE/4, TILE_SIZE/2, TILE_SIZE/2)
     end)
 
     -- UI/Overlay drawing (not affected by camera)
@@ -92,22 +124,9 @@ function love.draw()
 end
 
 function draw_debug()
-    -- Draw critical path line
+    -- Draw room boundaries
     local room_width_tiles = #ALL_TEMPLATES["L-R"][1].tiles[1]
     local room_height_tiles = #ALL_TEMPLATES["L-R"][1].tiles
-    love.graphics.setColor(1,0,1)
-    love.graphics.setLineWidth(4)
-    for i = 1, #critical_path - 1 do
-        local p1 = critical_path[i]
-        local p2 = critical_path[i+1]
-        local x1 = (p1.x - 0.5) * room_width_tiles * TILE_SIZE
-        local y1 = (p1.y - 0.5) * room_height_tiles * TILE_SIZE
-        local x2 = (p2.x - 0.5) * room_width_tiles * TILE_SIZE
-        local y2 = (p2.y - 0.5) * room_height_tiles * TILE_SIZE
-        love.graphics.line(x1, y1, x2, y2)
-    end
-
-    -- Draw room boundaries
     love.graphics.setColor(0, 1, 0)
     love.graphics.setLineWidth(1)
     for y = 0, 7 do
