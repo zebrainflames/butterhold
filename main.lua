@@ -37,9 +37,13 @@ function love.load()
 	local tile_count_horizontal = 1280 / BLOCK_SIZE
 	for i = 0, tile_count_horizontal do
 		y = 720 - BLOCK_SIZE
-		print("adding box at (" .. i * BLOCK_SIZE .. ", " .. y .. ").")
 		add_box(i * BLOCK_SIZE, y, BLOCK_SIZE, BLOCK_SIZE)
 	end
+
+	-- add some platforms
+	add_box(200, 600, 100, 32)
+	add_box(400, 500, 100, 32)
+	add_box(600, 400, 100, 32)
 
 	camera:setPosition(player.x, player.y)
 
