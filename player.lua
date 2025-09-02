@@ -1,23 +1,21 @@
 Player = {}
 Player.__index = Player
 
-local ENTITY_SIZE = 28
-
-function Player.new(x, y)
-    local self = setmetatable({}, Player)
-    self.x = x
-    self.y = y
-    self.w = ENTITY_SIZE
-    self.h = ENTITY_SIZE
-    self.vx = 0.0
-    self.vy = 0.0
-    self.is_grounded = false
-    self.name = "plr"
-    return self
+function Player.new(x, y, w, h)
+	local self = setmetatable({}, Player)
+	self.x = x
+	self.y = y
+	self.w = w
+	self.h = h
+	self.vx = 0.0
+	self.vy = 0.0
+	self.is_grounded = false
+	self.name = "plr"
+	return self
 end
 
 function Player:update(dt, world)
-    local gravity = 9.81 * 10
+	local gravity = 9.81 * 10
 	local jumpAccel = 2000
 	local brakeAccel = 2000
 	local runSpeed = 150
@@ -77,3 +75,4 @@ function Player:update(dt, world)
 end
 
 return Player
+

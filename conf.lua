@@ -13,3 +13,4 @@ function love.conf(t)
 
 	-- For more options, see the LÖVE wiki: https://love2d.org/wiki/Config_Files
 end
+
