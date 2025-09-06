@@ -1,6 +1,8 @@
 Player = {}
 Player.__index = Player
 
+local EPSILON = 0.1
+
 function Player.new(x, y, w, h)
 	local self = setmetatable({}, Player)
 	self.x = x
@@ -11,68 +13,128 @@ function Player.new(x, y, w, h)
 	self.vy = 0.0
 	self.is_grounded = false
 	self.name = "plr"
+
+	-- # mechanics
+	self.max_speed = 1500
+	self.acceleration = 800
+	self.friction = 2400 -- friction and some other parameters should at some point be set by terrain type
+	self.air_acceleration = 500
+	self.air_drag = 200
+	self.gravity = 2000
+	self.jump_impulse = 650
+	self.is_grounded = false
+
+	-- Timers
+	self.coyote_timer = 0
+	self.coyote_time = 0.1
+	self.jump_buffer_timer = 0
+	self.jump_buffer_time = 0.1
+
+	-- debug
+	self.debug_state = "idle"
+	--print("Player created...")
 	return self
 end
 
+-- TODO: move to Entity or shared procedure
+function Player:update_velocity_on_collision(nx, ny, bounciness)
+	bounciness = bounciness or 0.0
+	local vx, vy = self.vx, self.vy
+	--print("Got vx, vy: (" .. vx .. ", " .. vy .. ").")
+	if (nx < 0 and vx > 0) or (nx > 0 and vx < 0) then
+		vx = -vx * bounciness
+	end
+
+	if (ny < 0 and vy > 0) or (ny > 0 and vy < 0) then
+		vy = -vy * bounciness
+	end
+
+	self.vx, self.vy = vx, vy
+end
+
+-- TODO: move to math module
+local sign = function(dir)
+	if dir < 0.0 then
+		return -1.0
+	elseif dir > 0.0 then
+		return 1.0
+	end
+	return 0.0
+end
+
+-- TODO: iterate on exact logic & numbers used before push!
 function Player:update(dt, world)
-	local gravity = 9.81 * 10
-	local jumpAccel = 2000
-	local brakeAccel = 2000
-	local runSpeed = 150
-	local dragCoeff = 0.9
-	-- input handling
-	local dx, dy = self.vx, self.vy
+	self.debug_state = "idle"
+	local was_grounded = self.is_grounded
+	self.is_grounded = false
+
+	self.coyote_timer = self.coyote_timer - dt
+	self.jump_buffer_timer = self.jump_buffer_timer - dt
+
+	local move_direction = 0
 	if love.keyboard.isDown("right") or love.keyboard.isDown("d") then
-		dx = dx + runSpeed
+		self.debug_state = "move_right"
+		move_direction = 1
 	elseif love.keyboard.isDown("left") or love.keyboard.isDown("a") then
-		dx = dx - runSpeed
+		self.debug_state = "move_left"
+		move_direction = -1
 	end
-	-- apply braking if needed
-	if not love.keyboard.isDown("left") and dx < 0 then
-		dx = dx + brakeAccel * dt
-		if dx > 0 then
-			dx = 0
+
+	if love.keyboard.isDown("space") or love.keyboard.isDown("w") then
+		self.debug_state = self.debug_state .. "_jumping"
+		self.jump_buffer_timer = self.jump_buffer_time
+	end
+
+	local acc, fric
+	if was_grounded then
+		acc = self.acceleration
+		fric = self.friction
+	else
+		acc = self.air_acceleration
+		fric = self.air_drag
+	end
+
+	self.vx = self.vx + acc * move_direction * dt
+	self.vx = math.max(-self.max_speed, math.min(self.max_speed, self.vx))
+
+	if sign(move_direction) ~= sign(self.vx) then
+		self.debug_state = self.debug_state .. "_braking"
+		local fric_dir = sign(self.vx) * -1.0
+		local f = fric_dir * fric * dt
+		if math.abs(f) + EPSILON >= math.abs(self.vx) then
+			self.vx = 0.0
+		else
+			self.vx = self.vx + f
 		end
 	end
-	if not love.keyboard.isDown("right") and dx > 0 then
-		dx = dx - brakeAccel * dt
-		if dx < 0 then
-			dx = 0
-		end
+
+	self.vy = self.vy + self.gravity * dt
+
+	if self.coyote_timer > 0 and self.jump_buffer_timer > 0 then
+		self.vy = -self.jump_impulse
+		self.jump_buffer_timer = 0 -- Consume the buffered jump
+		self.coyote_timer = 0 -- Coyote jump has been used
+		print("Jumped!")
 	end
 
-	if (love.keyboard.isDown("space") or love.keyboard.isDown("w")) and self.is_grounded then
-		dy = dy - jumpAccel
-		self.is_grounded = false
-	end
+	local target_x = self.x + self.vx * dt
+	local target_y = self.y + self.vy * dt
+	local next_x, next_y, cols, cols_len = world:move(self, target_x, target_y)
 
-	local jumpFactor = 1.0 -- TODO: this needs a better name
-	if (love.keyboard.isDown("space") or love.keyboard.isDown("w")) and not self.is_grounded and dy < 0.0 then
-		jumpFactor = 0.2 -- TODO: implement frame or time counter for this
-	end
-	dy = dy + gravity * jumpFactor
-
-	dx = dx * dragCoeff
-	dy = dy * dragCoeff
-
-	self.vx, self.vy = dx, dy
-	-- physics update
-	local cols
-	local cols_len = 0
-	self.x, self.y, cols, cols_len = world:move(self, self.x + dx * dt, self.y + dy * dt)
 	for i = 1, cols_len do
 		local col = cols[i]
-		-- Vertical collision:
-		if col.normal.y ~= 0 then
+
+		-- general collision velocity response...
+		self:update_velocity_on_collision(col.normal.x, col.normal.y)
+
+		--... and ground hit check
+		if col.normal.y < 0 then
 			self.is_grounded = true
-			self.vy = 0
-		end
-		-- Horizontal collision
-		if col.normal.x ~= 0 then
-			self.vx = 0
+			self.coyote_timer = self.coyote_time
+			self.debug_state = self.debug_state .. "_grounded"
 		end
 	end
+	self.x, self.y = next_x, next_y
 end
 
 return Player
-
