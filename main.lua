@@ -167,6 +167,9 @@ function love.keypressed(key)
 		generate()
 	elseif key == "1" then
 		toggle_camera_mode()
+	elseif key == "p" then
+		local r = math.random()
+		print("Got random number: " .. r)
 	end
 end
 
